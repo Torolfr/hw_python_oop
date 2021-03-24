@@ -89,7 +89,7 @@ class CashCalculator(Calculator):
                 return 'Денег нет, держись'
             else:
                 return ('Денег нет, держись: '
-                        f'твой долг -  {abs(balance)} {cur_dict[currency][1]}')
+                        f'твой долг - {abs(balance)} {cur_dict[currency][1]}')
         except KeyError:
             return 'Вы указали недопустимую денежную едницу.'
 
