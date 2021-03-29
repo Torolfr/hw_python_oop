@@ -1,94 +1,90 @@
 import datetime as dt
-from typing import Union, List, Dict, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 
 class Record:
-    '''Класс для хранения данных в калькуляторе.'''
+    """Класс для хранения данных в калькуляторе."""
+    date_format = '%d.%m.%Y'
+
     def __init__(self,
                  amount: Union[int, float],
                  comment: str,
-                 date: str = '') -> None:
+                 date: Optional[str] = None) -> None:
         self.amount = amount
         self.comment = comment
-        date_format = '%d.%m.%Y'
-        if date == "":
-            self.date = dt.datetime.now().date()
+        if date is None:
+            self.date = dt.date.today()
         else:
-            self.date = dt.datetime.strptime(date, date_format).date()
+            self.date = dt.datetime.strptime(date, self.date_format).date()
 
 
 class Calculator:
-    '''Родительский класс Калькулятор.'''
-    def __init__(self, limit: Union[int, float]) -> None:
+    """Родительский класс Калькулятор."""
+
+    def __init__(self, limit: int) -> None:
         self.limit = limit
-        self.records: List = []
+        self.records: List[Tuple[int, str, Optional[str]]] = []
 
     def add_record(self, record: Record) -> None:
-        '''Метод для сохранения новой записи в объекте.'''
+        """Метод для сохранения новой записи в объекте."""
         self.records.append(record)
 
-    def get_today_stats(self) -> Union[int, float]:
-        '''Метод для подсчета дневного лимита.'''
-        today_stats: float = 0
-        for record in self.records:
-            if record.date.day == dt.datetime.today().day:
-                today_stats += record.amount
-        return today_stats
+    def get_today_stats(self) -> float:
+        """Метод для подсчета дневного лимита."""
+        date_today = dt.date.today()
+        return sum(record.amount for record in self.records
+                   if record.date == date_today)
 
-    def get_week_stats(self) -> Union[int, float]:
-        '''Метод для получения статистики по объекту за последние 7 дней.'''
+    def get_week_stats(self) -> float:
+        """Метод для получения статистики по объекту за последние 7 дней."""
         week_stats: float = 0
-        current_week = dt.date.today() - dt.timedelta(days=7)
+        last_week = dt.date.today() - dt.timedelta(days=7)
         for record in self.records:
-            if dt.date.today() >= record.date > current_week:
+            if last_week < record.date <= dt.date.today():
                 week_stats += record.amount
         return week_stats
 
-    def show_info(self) -> None:
-        '''Метод для вывода записи'''
-        for record in self.records:
-            print(f'{record.amount} - {record.comment}: {record.date}')
+    def get_balance(self) -> float:
+        return self.limit - self.get_today_stats()
 
 
 class CaloriesCalculator(Calculator):
-    '''Дочерний класс калькулятор калорий.'''
+    """Дочерний класс калькулятор калорий."""
+
     def get_calories_remained(self) -> str:
-        '''Метод для определения, сколько ещё калорий можно получить сегодня'''
+        """
+        Метод для определения, сколько ещё калорий можно получить сегодня.
+        """
         today_stats: float = self.get_today_stats()
         if today_stats < self.limit:
-            calories: float = self.limit - today_stats
+            calories: float = self.get_balance()
             return ('Сегодня можно съесть что-нибудь ещё, '
                     f'но с общей калорийностью не более {calories} кКал')
-        else:
-            return 'Хватит есть!'
+        return 'Хватит есть!'
 
 
 class CashCalculator(Calculator):
-    '''Дочерний класс калькулятор денег.'''
+    """Дочерний класс калькулятор денег."""
     USD_RATE: float = 75.37
     EURO_RATE: float = 89.72
     RUB_RATE: float = 1.00
 
     def get_today_cash_remained(self, currency: str) -> str:
-        '''
-        Метод для определения сколько ещё денег
-        можно потратить сегодня в рублях, долларах или евро
-        '''
+        """Метод для определения сколько ещё денег
+        можно потратить сегодня в рублях, долларах или евро.
+        """
         cur_dict: Dict[str, Tuple[float, str]]
         cur_dict = {'usd': (self.USD_RATE, 'USD'),
                     'eur': (self.EURO_RATE, 'Euro'),
                     'rub': (self.RUB_RATE, 'руб')}
-        try:
-            today_stats: float = self.get_today_stats()
-            diff: float = self.limit - today_stats
-            balance: float = round(diff / cur_dict[currency][0], 2)
-
-            if balance > 0:
-                return f'На сегодня осталось {balance} {cur_dict[currency][1]}'
-            elif balance == 0:
-                return 'Денег нет, держись'
-            else:
-                return ('Денег нет, держись: '
-                        f'твой долг - {abs(balance)} {cur_dict[currency][1]}')
-        except KeyError:
-            return 'Вы указали недопустимую денежную едницу.'
+        if currency not in cur_dict:
+            raise ValueError('Вы указали недопустимую денежную едницу.')
+        currency_rate, currency_unit = cur_dict[currency]
+        balance: float = round(self.get_balance() / currency_rate, 2)
+        if balance == 0:
+            return 'Денег нет, держись'
+        if balance > 0:
+            return f'На сегодня осталось {balance} {currency_unit}'
+        balance = abs(balance)
+        return ('Денег нет, держись: '
+                f'твой долг - {balance} {currency_unit}')
