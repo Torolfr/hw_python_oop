@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 
 class Record:
@@ -7,7 +7,7 @@ class Record:
     date_format = '%d.%m.%Y'
 
     def __init__(self,
-                 amount: Union[int, float],
+                 amount: int,
                  comment: str,
                  date: Optional[str] = None) -> None:
         self.amount = amount
@@ -23,7 +23,7 @@ class Calculator:
 
     def __init__(self, limit: int) -> None:
         self.limit = limit
-        self.records: List[Tuple[int, str, Optional[str]]] = []
+        self.records: List[Record] = []
 
     def add_record(self, record: Record) -> None:
         """Метод для сохранения новой записи в объекте."""
