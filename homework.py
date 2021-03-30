@@ -1,13 +1,14 @@
 import datetime as dt
 from typing import Dict, List, Optional, Tuple
 
+DATE_FORMAT = '%d.%m.%Y'
+
 
 class Record:
     """Класс для хранения данных в калькуляторе."""
-    date_format = '%d.%m.%Y'
 
     def __init__(self,
-                 amount: int,
+                 amount: float,
                  comment: str,
                  date: Optional[str] = None) -> None:
         self.amount = amount
@@ -15,7 +16,7 @@ class Record:
         if date is None:
             self.date = dt.date.today()
         else:
-            self.date = dt.datetime.strptime(date, self.date_format).date()
+            self.date = dt.datetime.strptime(date, DATE_FORMAT).date()
 
 
 class Calculator:
@@ -37,12 +38,11 @@ class Calculator:
 
     def get_week_stats(self) -> float:
         """Метод для получения статистики по объекту за последние 7 дней."""
-        week_stats: float = 0
+
         last_week = dt.date.today() - dt.timedelta(days=7)
-        for record in self.records:
-            if last_week < record.date <= dt.date.today():
-                week_stats += record.amount
-        return week_stats
+        today = dt.date.today()
+        return sum(record.amount for record in self.records
+                   if last_week < record.date <= today)
 
     def get_balance(self) -> float:
         return self.limit - self.get_today_stats()
@@ -55,9 +55,8 @@ class CaloriesCalculator(Calculator):
         """
         Метод для определения, сколько ещё калорий можно получить сегодня.
         """
-        today_stats: float = self.get_today_stats()
-        if today_stats < self.limit:
-            calories: float = self.get_balance()
+        calories: float = self.get_balance()
+        if calories > 0:
             return ('Сегодня можно съесть что-нибудь ещё, '
                     f'но с общей калорийностью не более {calories} кКал')
         return 'Хватит есть!'
@@ -73,18 +72,21 @@ class CashCalculator(Calculator):
         """Метод для определения сколько ещё денег
         можно потратить сегодня в рублях, долларах или евро.
         """
-        cur_dict: Dict[str, Tuple[float, str]]
-        cur_dict = {'usd': (self.USD_RATE, 'USD'),
-                    'eur': (self.EURO_RATE, 'Euro'),
-                    'rub': (self.RUB_RATE, 'руб')}
-        if currency not in cur_dict:
-            raise ValueError('Вы указали недопустимую денежную едницу.')
-        currency_rate, currency_unit = cur_dict[currency]
-        balance: float = round(self.get_balance() / currency_rate, 2)
+        money: Dict[str, Tuple[float, str]]
+        money = {'usd': (self.USD_RATE, 'USD'),
+                 'eur': (self.EURO_RATE, 'Euro'),
+                 'rub': (self.RUB_RATE, 'руб')}
+        balance = self.get_balance()
         if balance == 0:
             return 'Денег нет, держись'
+        if currency not in money:
+            return 'Вы указали недопустимую денежную единицу.'
+        currency_rate: float
+        currency_unit: str
+        currency_rate, currency_unit = money[currency]
+        balance_unit: float = round(balance / currency_rate, 2)
         if balance > 0:
-            return f'На сегодня осталось {balance} {currency_unit}'
-        balance = abs(balance)
+            return f'На сегодня осталось {balance_unit} {currency_unit}'
+        balance_unit = abs(balance_unit)
         return ('Денег нет, держись: '
-                f'твой долг - {balance} {currency_unit}')
+                f'твой долг - {balance_unit} {currency_unit}')
