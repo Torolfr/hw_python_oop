@@ -38,9 +38,8 @@ class Calculator:
 
     def get_week_stats(self) -> float:
         """Метод для получения статистики по объекту за последние 7 дней."""
-
-        last_week = dt.date.today() - dt.timedelta(days=7)
         today = dt.date.today()
+        last_week = today - dt.timedelta(days=7)
         return sum(record.amount for record in self.records
                    if last_week < record.date <= today)
 
